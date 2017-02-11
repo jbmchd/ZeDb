@@ -11,8 +11,7 @@ namespace ZeDb;
 use Zend\Db\Adapter\Adapter,
     Zend\Db\ResultSet\ResultSet,
     ZeDb\TableGateway,
-    ZeDb\Module as ZeDb,
-    string;
+    ZeDb\Module as ZeDb;
 /**
  * Model Class
  * Loads mapper entities from the database and stores them in a local container for later use.
@@ -38,12 +37,25 @@ class Model extends TableGateway implements ModelInterface
      * @var array
      */
     protected $_localEntities = array();
-
+    
+    //ADD JOABE
+    private $connection;
+    private $entity;
+    
     /**
      * @param array $options
      * @param \Zend\Db\Adapter\Adapter $adapter
      */
-    public function __construct(Adapter $adapter, $options = null){
+    public function __construct($primary_key = null, $options = null, Adapter $adapter=null){
+        if($adapter==null){$adapter = $this->getAdaptador();}
+        
+        $this->tableName=$this->montaNomeTabela($this->tableName);
+        $this->connection = $adapter->getDriver()->getConnection();
+        
+        if($primary_key){
+            $this->primaryKey = $primary_key;
+        }
+        
         if (!$options){
             $options=array();
         }
@@ -160,7 +172,19 @@ class Model extends TableGateway implements ModelInterface
      * @param EntityInterface $entity
      * @return EntityInterface
      */
-    public function save(EntityInterface $entity){
+    
+    public function save($entity){
+        
+        if( ! $entity instanceof EntityInterface ){
+            $entity = $this->create($entity);
+        } 
+        
+        return $this->_save($entity);
+        
+    }
+
+
+    private function _save(EntityInterface $entity){
         $data = $entity->toArray();
         if ($data[$this->primaryKey]){
             $this->update($data, array($this->primaryKey => $data[$this->primaryKey]));
@@ -220,18 +244,84 @@ class Model extends TableGateway implements ModelInterface
     public function __call($name, $args){
         if (substr($name, 0, 3) == 'get'){
             $entities = parent::__call($name, $args);
+            
+            $ret=['error'=>false, 'message'=>sizeof($entities).' registro(s) retornado(s)', 'table'=>$entities, 'primeiroRegistro'=>[]];
+            
             if (!$entities){
-                return null;
+                $ret['table']=[];
             }elseif (is_array($entities)){
                 foreach($entities as $entity) {
                     $this->_entities[$entity[$this->primaryKey]] = $entity;
                 }
+                $ret['primeiroRegistro']=$entities[0];
             }else if ($entities instanceof EntityInterface){
                 $this->_entities[$entities[$this->primaryKey]] = $entities;
             }
-            return $entities;
+            
+            return $ret;
         }
         return parent::__call($name, $args);
     }
 
+    
+    // ADICIONADO POR JOABE
+    
+    private function getAdaptador(){
+        $params = $this->getDatabaseManager()->get('config')['zendexperts_zedb']['adapter'];
+        $adapter = new \Zend\Db\Adapter\Adapter($params);
+        return $adapter;
+    }
+    
+    public function beginTransaction(){
+        $this->connection->beginTransaction();
+    }
+    
+    public function commit(){
+        $this->connection->commit();
+        $this->disconnect();
+    }
+    
+    public function rollback(){
+        $this->connection->rollback();
+        $this->disconnect();
+    }
+    
+    public function disconnect(){
+        $this->connection->disconnect();
+    }
+    
+    public function isConnected(){
+        $this->connection->isConnected();
+    }
+    
+    protected function executeSql($sql){
+        try {
+            
+            //prepara executa a sql
+            $statement = $this->getAdapter()->createStatement();
+            $statement->prepare($sql);
+            $result = $statement->execute();
+            $ret=['error'=>false, 'message'=>$result->getAffectedRows().' registro(s) retornado(s)', 'table'=>[], 'primeiroRegistro'=>[]];
+            
+            //formata retornos diferentes para sql de busca e alteracao
+            if(in_array(explode(' ', trim($sql))[0],['INSERT', 'UPDATE', 'DELETE']) ){
+                $ret['message']=$result->getAffectedRows().' linha(s) afetada(s)';
+            } else {
+                $ret['table']=$result->getResource()->fetchAll(\PDO::FETCH_ASSOC);
+                $ret['primeiroRegistro']=(sizeof($ret['table']))?$ret['table'][0]:[];
+            } 
+            return $ret;
+        } catch (\Exception $e) {
+            $ret['error']=1;
+            $ret['message']=$e->getMessage();
+            return $ret;
+        }
+    }
+    
+    private function montaNomeTabela($namespace){
+        $ultima_barra = strrpos($namespace, '\\')+1;
+        $nome_classe = substr($namespace, $ultima_barra);
+        $nome_tabela = strtolower(str_replace(' ', '_', trim(preg_replace("([A-Z])", " $0", $nome_classe))));
+        return $nome_tabela;
+    }
 }

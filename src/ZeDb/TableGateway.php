@@ -105,8 +105,9 @@ class TableGateway extends Gateway
         $resultSet = $this->_getResultSet($matches, $args);
         //Parse the result set and return all the entitites
         $entities = array();
+        
         foreach ($resultSet as $entity){
-            $entities[] = $entity;
+            $entities[] = $entity->toArray();
         }
         return $entities;
     }

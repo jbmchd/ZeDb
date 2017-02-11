@@ -1,4 +1,7 @@
 <?php
+
+namespace ZeDb;
+
 return array(
     'zendexperts_zedb' =>  array(
         'adapter' => array(
@@ -19,4 +22,9 @@ return array(
         ),
     ),
     'di'=>array(),
+    'controller_plugins' => [ 
+        'invokables' => [ 
+            'db'    => Plugin\Plugin::class,
+        ]
+    ],
 );

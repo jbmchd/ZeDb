@@ -44,7 +44,7 @@ interface ModelInterface
      * @abstract
      * @param EntityInterface $entity
      */
-    public function save(EntityInterface $entity);
+    public function save($entity);
 
     /**
      * Get an entity by Id
