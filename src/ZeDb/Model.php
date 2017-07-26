@@ -314,6 +314,8 @@ class Model extends TableGateway implements ModelInterface
         } catch (\Exception $e) {
             $ret['error']=1;
             $ret['message']=$e->getMessage();
+            $ret['table']=null;
+            $ret['primeiroRegistro']=null;
             return $ret;
         }
     }
