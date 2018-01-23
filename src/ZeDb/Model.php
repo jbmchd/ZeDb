@@ -301,11 +301,12 @@ class Model extends TableGateway implements ModelInterface
             $statement = $this->getAdapter()->createStatement();
             $statement->prepare($sql);
             $result = $statement->execute();
-            $ret=['error'=>false, 'message'=>$result->getAffectedRows().' registro(s) retornado(s)', 'table'=>[], 'primeiroRegistro'=>[]];
+            
+            $ret=['error'=>false, 'message'=>$result->getAffectedRows().' registro(s)'];
             
             //formata retornos diferentes para sql de busca e alteracao
             if(in_array(explode(' ', trim($sql))[0],['INSERT', 'UPDATE', 'DELETE']) ){
-                $ret['message']=$result->getAffectedRows().' linha(s) afetada(s)';
+                $ret['lastId']=$result->getGeneratedValue();
             } else {
                 $ret['table']=$result->getResource()->fetchAll(\PDO::FETCH_ASSOC);
                 $ret['primeiroRegistro']=(sizeof($ret['table']))?$ret['table'][0]:[];
